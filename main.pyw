@@ -3,24 +3,7 @@ from easygui import enterbox
 from pygame.locals import *
 from random import *
 
-'''
-待做功能
 
-#done 实时显示(开关)击毁数（大中小） 逃窜数（大中小） 逃窜率 ...
-炸弹特效
-#done 添加+1生命补给包 为补给包增加水平扰动
-#done 右上角添加静音开关
-#done 结尾按t显示排行 显示排行中按b返回结束界面
-更多类型补给(实际会增加后期难度 因为命和炸弹稀缺)
-双子弹之上上的4子弹 2次双子弹叠加则进化为4子弹 持续时间甚至叠加? 借以平衡上一条
-
-
-
-
-待修复
-#done 打包后的exe文件 进榜结束时报错 已定位到#test_unfixed之间
-
-'''
 
 pygame.init()
 pygame.mixer.init()
@@ -143,6 +126,7 @@ def main():
    
     supply_gap = 20
     bullet2_duration = 18
+    bullet3_duration = 30
     #每(supply_gap)s补给包
     bullet_supply = supply.Bullet_Supply(bg_size)
     bomb_supply = supply.Bomb_Supply(bg_size)
@@ -155,6 +139,7 @@ def main():
     count_second = 0 #记录非暂停时间(秒)
     supply_count_second = 0 #记录上次发补给的时刻(秒)
     bullet2_count_second = 0
+    bullet3_count_second = 0
     delay = 0 #记录已绘制帧数 到100则归零
     SUPPLY_TIME2 = USEREVENT + 1
     pygame.time.set_timer(SUPPLY_TIME2,1000)#每1000毫秒触发一次time2事件
@@ -166,6 +151,7 @@ def main():
     #生成我方飞机
     me = myplane.Myplane(bg_size)
     is_double_bullet = False
+    is_super_bullet = False
     rpcount_second = 0
     
     #生成敌方飞机
@@ -189,13 +175,23 @@ def main():
     for i in range(BULLET1_NUM):
         bullet1.append(bullet.Bullet1(me.rect.midtop))
 
-    #生成超级子弹
+    #生成双子弹
     bullet2 = []
     bullet2_index = 0
     BULLET2_NUM = 8
     for i in range(BULLET2_NUM//2):
         bullet2.append(bullet.Bullet2((me.rect.centerx-33,me.rect.centery)))
         bullet2.append(bullet.Bullet2((me.rect.centerx+30,me.rect.centery)))
+
+    #生成超级子弹
+    bullet3 = []
+    bullet3_index = 0
+    BULLET3_NUM = 16
+    for i in range(BULLET3_NUM//4):
+        bullet3.append(bullet.Bullet3((me.rect.centerx-63,me.rect.centery)))
+        bullet3.append(bullet.Bullet3((me.rect.centerx-23,me.rect.centery)))
+        bullet3.append(bullet.Bullet3((me.rect.centerx+23,me.rect.centery)))
+        bullet3.append(bullet.Bullet3((me.rect.centerx+63,me.rect.centery)))
 
     #中弹图片索引
     e1_destroy_index = 0
@@ -381,10 +377,13 @@ def main():
                         bullet_supply.reset()
 
                 if count_second - bullet2_count_second ==\
-                   bullet2_duration:#超级子弹持续时间结束
-                    #print('超级子弹持续时间结束')#test
+                   bullet2_duration:#双子弹持续时间结束
                     if not me.wudi:
                         is_double_bullet = False
+
+                if count_second - bullet3_count_second == bullet3_duration:
+                    #超级子弹持续时间结束
+                    is_super_bullet = False
  
                         
   
@@ -479,15 +478,20 @@ def main():
                         bomb_num += 1
                     bomb_supply.active = False
 
-            #绘制超级子弹补给并检测是否获得
+            #绘制双子弹补给并检测是否获得
             if bullet_supply.active:
                 bullet_supply.move()
                 screen.blit(bullet_supply.image,bullet_supply.rect)
                 if pygame.sprite.collide_mask(bullet_supply,me):
                     get_bullet_sound.play()
-                    is_double_bullet = True
-                    bullet_supply.active = False
-                    bullet2_count_second = count_second
+                    if is_double_bullet == True:
+                        is_super_bullet = True
+                        bullet_supply.active = False
+                        bullet3_count_second = count_second
+                    else:
+                        is_double_bullet = True
+                        bullet_supply.active = False
+                        bullet2_count_second = count_second
     
 
              #绘制生命+1补给并检测是否获得
@@ -505,11 +509,19 @@ def main():
             #发射子弹
             if not delay%10:
                 bullet_sound.play()
-                if is_double_bullet:
+                
+                if is_super_bullet:
+                    bullets = bullet3
+                    bullets[bullet3_index].reset((me.rect.centerx-63,me.rect.centery))
+                    bullets[bullet3_index+1].reset((me.rect.centerx-23,me.rect.centery))
+                    bullets[bullet3_index+2].reset((me.rect.centerx+23,me.rect.centery))
+                    bullets[bullet3_index+3].reset((me.rect.centerx+63,me.rect.centery))
+                    bullet3_index = (bullet3_index +4)% BULLET3_NUM
+                elif is_double_bullet:
                     bullets = bullet2
                     bullets[bullet2_index].reset((me.rect.centerx-33,me.rect.centery))
                     bullets[bullet2_index+1].reset((me.rect.centerx+30,me.rect.centery))
-                    bullet2_index = (bullet2_index +2)% BULLET2_NUM                             
+                    bullet2_index = (bullet2_index +2)% BULLET2_NUM
                 else:
                     bullets = bullet1
                     bullets[bullet1_index].reset(me.rect.midtop)
@@ -767,7 +779,7 @@ def main():
         Writeline(text='英雄名',color=WHITE,alter_x = -80,alter_y =-200)
         Writeline(text='分数',color=WHITE,alter_x=100,alter_y =-200)
         for i in range(len(new_record)):
-            if new_record[i][0] == username:
+            if new_record[i][0] == username and new_record[i][1]==score:
                 Writeline(text='NO.{} '.format(i+1),color=GOLDEN,alter_x=-200,alter_y =-150+30*i)
                 Writeline(text=str(new_record[i][0]),color=GOLDEN,alter_x = -80,alter_y =-150+30*i)
                 Writeline(text=str(new_record[i][1]),color=GOLDEN,alter_x=100,alter_y =-150+30*i)
