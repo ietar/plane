@@ -867,17 +867,20 @@ def main():
         Writeline(text='按q结束',bold=True,size=36,alter_y = +100)
 
     #定义排行榜界面
+    
     def Shift_to_toplist():
         screen.blit(background,(0,bg_posy))
         screen.blit(score_text,(10,5))
         Writeline(text='排名 ',color=WHITE,alter_x=-200,alter_y =-200)
         Writeline(text='英雄名',color=WHITE,alter_x = -80,alter_y =-200)
         Writeline(text='分数',color=WHITE,alter_x=100,alter_y =-200)
+        mark_me = 0
         for i in range(len(new_record)):
-            if new_record[i][0] == username and new_record[i][1]==score:
+            if new_record[i][0] == username and new_record[i][1]==score and not mark_me:
                 Writeline(text='NO.{} '.format(i+1),color=GOLDEN,alter_x=-200,alter_y =-150+30*i)
                 Writeline(text=str(new_record[i][0]),color=GOLDEN,alter_x = -80,alter_y =-150+30*i)
                 Writeline(text=str(new_record[i][1]),color=GOLDEN,alter_x=100,alter_y =-150+30*i)
+                mark_me = 1
             else:
                 Writeline(text='NO.{} '.format(i+1),alter_x=-200,alter_y =-150+30*i)
                 Writeline(text=str(new_record[i][0]),alter_x = -80,alter_y =-150+30*i)
