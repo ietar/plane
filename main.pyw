@@ -10,7 +10,7 @@ pygame.mixer.init()
 
 bg_size = width,height = 480,700 #为操作界面尺寸
 screen = pygame.display.set_mode(bg_size)
-pygame.display.set_caption('僵硬飞机一架')
+pygame.display.set_caption(r'打飞机是男人的浪漫! v2.0')
 
 background = pygame.image.load(r'images\background_double.png').convert()
 BLACK =(0,0,0)
@@ -45,10 +45,15 @@ enemy3_down_sound.set_volume(0.5)
 me_down_sound = pygame.mixer.Sound("sound/me_down.wav")
 me_down_sound.set_volume(0.2)
 cheatonsound = pygame.mixer.Sound(r'sound\cheaton.wav')
+cheatonsound.set_volume(0.5)
 cheatoffsound = pygame.mixer.Sound(r'sound\cheatoff.wav')
+cheatoffsound.set_volume(0.5)
 get_life_sound = pygame.mixer.Sound(r'sound\joinme.wav')
+get_life_sound.set_volume(0.3)
+theworld_sound = pygame.mixer.Sound(r'sound\theworldtick.wav')
+theworld_sound.set_volume(0.5)
 
-kill = [0,0,0]
+
 
 
 
@@ -116,6 +121,7 @@ def main():
 
     #设置难度
     level = 1
+    target_rate = [0.1,0.2,0.3]
 
     #全屏炸弹
     bomb_image = pygame.image.load(r'images\bomb.png').convert_alpha()
@@ -127,10 +133,13 @@ def main():
     supply_gap = 20
     bullet2_duration = 18
     bullet3_duration = 30
+    theworld_duration = 300
+    
     #每(supply_gap)s补给包
     bullet_supply = supply.Bullet_Supply(bg_size)
     bomb_supply = supply.Bomb_Supply(bg_size)
     life_supply = supply.Life_Supply(bg_size)
+    theworld_supply = supply.Theworld_Supply(bg_size)
     SUPPLY_TIME = USEREVENT
     pygame.time.set_timer(SUPPLY_TIME,supply_gap*1000)
     
@@ -140,10 +149,11 @@ def main():
     supply_count_second = 0 #记录上次发补给的时刻(秒)
     bullet2_count_second = 0
     bullet3_count_second = 0
+    theworld_count_second = 0
     delay = 0 #记录已绘制帧数 到100则归零
     SUPPLY_TIME2 = USEREVENT + 1
     pygame.time.set_timer(SUPPLY_TIME2,1000)#每1000毫秒触发一次time2事件
-    
+        
                                       
         
 
@@ -152,6 +162,7 @@ def main():
     me = myplane.Myplane(bg_size)
     is_double_bullet = False
     is_super_bullet = False
+    is_theworld = False
     rpcount_second = 0
     
     #生成敌方飞机
@@ -199,6 +210,12 @@ def main():
     e3_destroy_index = 0
     me_destroy_index = 0
 
+
+    #逃窜率初始化
+    kill = [0,0,0]
+    enemy.miss=[0,0,0]
+    enemy.create=[2,6,15]
+
     #详细信息开关
     info = False
     miss_rate = [enemy.miss[0]/enemy.create[1],\
@@ -214,24 +231,21 @@ def main():
     
     levelup_score =[50000,300000,600000,1000000]
     #levelup_score = [5000,10000,20000,30000]
+    target_score = levelup_score[-1]
+    bonus_level = 0
 
     while running:
-        #暂停控制
-        if paused:
+        #暂停控制 背景音乐静音控制
+        if paused or silence or is_theworld:
             #pygame.time.set_timer(SUPPLY_TIME,0)
             pygame.mixer.music.pause()
-            #pygame.mixer.pause
+            pygame.mixer.stop
         else:
             #pygame.time.set_timer(SUPPLY_TIME,supply_gap * 1000)
             pygame.mixer.music.unpause()
             #pygame.mixer.unpause
-
-        #背景音乐静音控制
-        if silence:
-            pygame.mixer.music.pause()
-        else:
-            pygame.mixer.music.unpause()
             
+        
         
         for event in pygame.event.get():
             if event.type == QUIT:
@@ -271,19 +285,23 @@ def main():
                 if event.key == K_o: ###cheating code###
                     me.wudi = not me.wudi 
                     if me.wudi:
-                        cheatonsound.play()
+                        if not paused and not silence:
+                            cheatonsound.play()
                         is_double_bullet = True
                     else:
-                        cheatoffsound.play()
+                        if not paused and not silence:
+                            cheatoffsound.play()
                         bullet2_count_second = count_second
                 if event.key == K_ESCAPE:#立刻结束
                     running = False
                     
                 if event.key == K_z:#调试用
-                    print('is_double_bullet:',is_double_bullet)
-                    print('supply_gap=',supply_gap)
+                    print('level=',level)
+                    print('双弹夹:',is_double_bullet)
+                    print('四弹夹:',is_super_bullet)
+                    print('补给间隔=',supply_gap)
                     print('current supply gap=',count_second - supply_count_second)
-
+                    print('target_rate=',target_rate)
 
                     '''print('kill=',kill)
                     print('miss=',enemy.miss)
@@ -298,26 +316,31 @@ def main():
                 if event.key == K_i:
                     info_count_second = count_second
                     info = not info #尝试实时显示
-                    cheatoffsound.play()
+                    if not paused and not silence:
+                        cheatoffsound.play()
 
                     #make_info()
                     miss_rate = [enemy.miss[0]/enemy.create[1],\
                             enemy.miss[1]/enemy.create[1],\
                             enemy.miss[2]/enemy.create[2]]
                     miss_rate_str = ['%.1f'%(x*100)+r'%' for x in miss_rate]
+                    target_rate_str = ['%.1f'%(x*100)+r'%' for x in target_rate]
     
                     killinfo='kill={} {} {}'.format(kill[0],kill[1],kill[2])
                     missinfo='miss={} {} {}'.format(enemy.miss[0],enemy.miss[1],enemy.miss[2])
-                    createinfo='create={} {} {}'.format(enemy.create[0],enemy.create[1],enemy.create[2])
+                    targetinfo='target={} {} {}'.format(target_rate_str[0],target_rate_str[1],target_rate_str[2])
                     rateinfo='rate={} {} {}'.format(miss_rate_str[0],miss_rate_str[1],miss_rate_str[2])
+                    #bonuslevelinfo ='bonus={}'.format(bonus_level)
+                  
 
                     
                     
                     def write_info():
                         Writeline(text=killinfo,size=12,alter_x=25,alter_y=-345)
                         Writeline(text=missinfo,size=12,alter_x=25,alter_y=-330)
-                        Writeline(text=createinfo,size=12,alter_x=25,alter_y=-300)
                         Writeline(text=rateinfo,size=12,alter_x=25,alter_y=-315)
+                        Writeline(text=targetinfo,size=12,alter_x=25,alter_y=-300)
+                        Writeline(text='bonus={}'.format(bonus_level),size=12,alter_x=25,alter_y=-285)
 
                     
                     '''#make_info#
@@ -338,14 +361,24 @@ def main():
                         if me.wudi:
                             bomb_num += 2
                         bomb_num -= 1
-                        bomb_sound.play()
+                        if not paused and not silence:
+                            bomb_sound.play()
                         for each in enemies:
                             if each not in big_enemies:#大飞机可炸不动 要慢慢打
                                 if each.rect.bottom > 0:
                                     each.active = False
+
+            
             #非暂停时才计时count_second
             elif event.type == SUPPLY_TIME2 and not paused:#1000毫秒触发1次的事件
                 count_second += 1
+                
+                if level == 5:
+                    if miss_rate[0]> target_rate[0] or miss_rate[1]>target_rate[1]\
+                       or miss_rate[2] > target_rate[2]:#逃窜率检定未通过
+                        running = False
+                        print('逃窜率检定未通过')#test
+                    
                 if info == True:
                     
                     #info为True时 每秒更新1次info
@@ -354,11 +387,13 @@ def main():
                             enemy.miss[1]/enemy.create[1],\
                             enemy.miss[2]/enemy.create[2]]
                     miss_rate_str = ['%.1f'%(x*100)+r'%' for x in miss_rate]
+                    target_rate_str = ['%.1f'%(x*100)+r'%' for x in target_rate]
     
                     killinfo='kill={} {} {}'.format(kill[0],kill[1],kill[2])
                     missinfo='miss={} {} {}'.format(enemy.miss[0],enemy.miss[1],enemy.miss[2])
-                    createinfo='create={} {} {}'.format(enemy.create[0],enemy.create[1],enemy.create[2])
+                    targetinfo='target={} {} {}'.format(target_rate_str[0],target_rate_str[1],target_rate_str[2])
                     rateinfo='rate={} {} {}'.format(miss_rate_str[0],miss_rate_str[1],miss_rate_str[2])
+                    #bonuslevelinfo ='bonus={}'.format(bonus_level)
                     
                 if rpcount_second == 0:
                     me.rebornprotect = False
@@ -366,15 +401,18 @@ def main():
                     rpcount_second -= 1
                 
                 if count_second - supply_count_second == supply_gap:#补给间隔到了
-                    supply_sound.play()
+                    if not paused and not silence:
+                        supply_sound.play()
                     supply_count_second = count_second
-                    randsupply = randint(0,2)
+                    randsupply = randint(0,3)
                     if randsupply == 0:
                         bomb_supply.reset()
                     elif randsupply == 1:
                         life_supply.reset()
-                    else:
+                    elif randsupply == 2:
                         bullet_supply.reset()
+                    else:
+                        theworld_supply.reset()
 
                 if count_second - bullet2_count_second ==\
                    bullet2_duration:#双子弹持续时间结束
@@ -396,7 +434,8 @@ def main():
             level = 2
             supply_count_second = count_second
             supply_gap -= 5
-            upgrade_sound.play()
+            if not paused and not silence:
+                upgrade_sound.play()
             #小+3 中+2 大+1
             add_small_enemies(small_enemies,enemies,3)
             add_mid_enemies(mid_enemies,enemies,2)
@@ -407,7 +446,8 @@ def main():
             level = 3
             supply_count_second = count_second
             supply_gap -= 5
-            upgrade_sound.play()
+            if not paused and not silence:
+                upgrade_sound.play()
             #小+5 中+3 大+2
             add_small_enemies(small_enemies,enemies,5)
             add_mid_enemies(mid_enemies,enemies,3)
@@ -419,7 +459,8 @@ def main():
             level = 4
             supply_count_second = count_second
             supply_gap -= 3
-            upgrade_sound.play()
+            if not paused and not silence:
+                upgrade_sound.play()
             #小+5 中+3 大+2
             add_small_enemies(small_enemies,enemies,5)
             add_mid_enemies(mid_enemies,enemies,3)
@@ -431,7 +472,8 @@ def main():
             level = 5
             supply_count_second = count_second
             supply_gap -= 2
-            upgrade_sound.play()
+            if not paused and not silence:
+                upgrade_sound.play()
             #小+5 中+3 大+2
             add_small_enemies(small_enemies,enemies,5)
             add_mid_enemies(mid_enemies,enemies,3)
@@ -440,10 +482,31 @@ def main():
             increase_speed(small_enemies,1)
             increase_speed(mid_enemies,1)
             
+        elif level == 5:
             
+            if score - target_score >= 100000:#额外关卡
+                bonus_level += 1
+                target_score += 100000
+                target_rate[0]*=0.9
+                target_rate[1]*=0.9
+                target_rate[2]*=0.9
+                
+                if not paused and not silence:
+                    upgrade_sound.play()
+                
+           
         
             
-        if not paused:            
+        if not paused:
+            
+            #theworld逻辑
+            if is_theworld:
+                theworld_duration -= 1
+                if not theworld_duration:
+                    theworld_duration = 300
+                    is_theworld = False
+                    
+   
 
             #检测键盘操作
             key_pressed = pygame.key.get_pressed()
@@ -470,20 +533,24 @@ def main():
 
             #绘制全屏炸弹补给并检测是否获得
             if bomb_supply.active:
-                bomb_supply.move()
+                if not is_theworld:
+                    bomb_supply.move()
                 screen.blit(bomb_supply.image,bomb_supply.rect)
                 if pygame.sprite.collide_mask(bomb_supply,me):
-                    get_bomb_sound.play()
+                    if not paused and not silence:
+                        get_bomb_sound.play()
                     if bomb_num < 6:#设置最大全屏炸弹数量为6
                         bomb_num += 1
                     bomb_supply.active = False
 
             #绘制双子弹补给并检测是否获得
             if bullet_supply.active:
-                bullet_supply.move()
+                if not is_theworld:
+                    bullet_supply.move()
                 screen.blit(bullet_supply.image,bullet_supply.rect)
                 if pygame.sprite.collide_mask(bullet_supply,me):
-                    get_bullet_sound.play()
+                    if not paused and not silence:
+                        get_bullet_sound.play()
                     if is_double_bullet == True:
                         is_super_bullet = True
                         bullet_supply.active = False
@@ -496,19 +563,40 @@ def main():
 
              #绘制生命+1补给并检测是否获得
             if life_supply.active:
-                life_supply.move()
+                if not is_theworld:
+                    life_supply.move()
                 screen.blit(life_supply.image,life_supply.rect)
                 if pygame.sprite.collide_mask(life_supply,me):
-                    get_life_sound.play()
+                    if not paused and not silence:
+                        get_life_sound.play()
                     if me.life < 6:#设置最大备用生命数量为6
                         me.life += 1
                     life_supply.active = False
 
+            #绘制theworld补给并检测是否获得
+            if theworld_supply.active:
+                if not is_theworld:
+                    theworld_supply.move()
+                screen.blit(theworld_supply.image,theworld_supply.rect)
+                if pygame.sprite.collide_mask(theworld_supply,me):
+                    if not paused and not silence:
+                        theworld_sound.play()
+                    is_theworld = True
+                    theworld_supply.active = False
+                    theworld_count_second = delay
+                    #补给 重生保护 相应增加5秒
+                    supply_count_second += 5
+                    rpcount_second += 5
+                    bullet2_count_second += 5
+                    bullet3_count_second += 5
+                    
+   
             
             
             #发射子弹
             if not delay%10:
-                bullet_sound.play()
+                if not paused and not silence and not is_theworld:
+                    bullet_sound.play()
                 
                 if is_super_bullet:
                     bullets = bullet3
@@ -546,7 +634,8 @@ def main():
                 if not each.active:
                     #毁灭
                     if e3_destroy_index == 0:
-                        enemy3_down_sound.play()
+                        if not paused and not silence:
+                            enemy3_down_sound.play()
                     if not (delay%3):
                         screen.blit(each.destroy_images[e3_destroy_index],each.rect)
                         e3_destroy_index = (e3_destroy_index+1)%6
@@ -557,7 +646,8 @@ def main():
                             each.reset()
                                   
                 else: 
-                    each.move()
+                    if not is_theworld:
+                        each.move()
                     if not delay%5:
                         each.hit = False
                     if each.hit:
@@ -584,14 +674,16 @@ def main():
                         
                     #即将出现时播放提醒音效
                     if each.rect.bottom == -50:
-                        enemy3_fly_sound.play(-1)
+                        if not paused and not silence:
+                            enemy3_fly_sound.play(-1)
 
             #中敌机
             for each in mid_enemies:
                 if not each.active:
                     #毁灭
                     if e2_destroy_index == 0:
-                        enemy2_down_sound.play()
+                        if not paused and not silence:
+                            enemy2_down_sound.play()
                     if not (delay%3):
                         screen.blit(each.destroy_images[e2_destroy_index],each.rect)
                         e2_destroy_index = (e2_destroy_index+1)%4
@@ -601,7 +693,8 @@ def main():
                             each.reset()
                     
                 else:
-                    each.move()
+                    if not is_theworld:
+                        each.move()
                     if not delay%5:
                         each.hit = False
                     if each.hit:
@@ -627,7 +720,8 @@ def main():
                 if not each.active:
                     #毁灭
                     if e1_destroy_index == 0:
-                        enemy1_down_sound.play()
+                        if not paused and not silence:
+                            enemy1_down_sound.play()
                     if not (delay%3):
                         screen.blit(each.destroy_images[e1_destroy_index],each.rect)
                         e1_destroy_index = (e1_destroy_index+1)%4
@@ -637,7 +731,8 @@ def main():
                             each.reset()
                     
                 else:
-                    each.move()
+                    if not is_theworld:
+                        each.move()
                     screen.blit(each.image,each.rect)
 
             #检测我方飞机是否撞了
@@ -661,10 +756,10 @@ def main():
                         screen.blit(me.image1,me.rect)
             else:
                 #毁灭
-                if me_destroy_index == 0:
-                    me_down_sound.play()
                 if not (delay%3):
                     screen.blit(me.destroy_images[me_destroy_index],me.rect)
+                    if me_destroy_index == 0:
+                        me_down_sound.play()
                     me_destroy_index = (me_destroy_index +1)%4
                     if me_destroy_index == 0:
                         me.reset()
@@ -759,7 +854,7 @@ def main():
             screen.blit(me.life_image,(width-10-(i+1)*me.life_rect.width,\
                                           height - 10-me.life_rect.height))
         screen.blit(score_text,(10,5))
-        screen.blit(paused_image,paused_rect)
+        #screen.blit(paused_image,paused_rect)
         
     #定义游戏结束界面
     def Shift_to_gameover():
@@ -801,16 +896,17 @@ def main():
     
     Shift_to_gameover()
     
-    print('before into toplist')
     if score > record_list[-1][1]: #如果比最后1名分高
         ranking = True
         Writeline(text='成绩不错,入榜了哦',bold=True,size=24,alter_y=50)
         username = 'you know who'
         pygame.display.flip()
-        
+
         username = enterbox(msg='英雄大名:',title = '万古流芳!',default='you know who')
-        while len(username)>12:
+        while username and len(username)>12:
             username = enterbox(msg=r'英雄名有点长,不太好记啊(12字符以内应该记得住):',title = '必须万古流芳!',default='you know who')
+        if not username:
+            username='you know who'
         #用easygui.enterbox代替改造的轮子进行输入
             
         record_list.append([username,score])
