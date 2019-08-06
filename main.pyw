@@ -1,6 +1,5 @@
 import pygame
 import sys
-import traceback
 import myplane
 import enemy
 import bullet
@@ -57,7 +56,7 @@ cheatoffsound.set_volume(0.5)
 get_life_sound = pygame.mixer.Sound(r'sound\joinme.wav')
 get_life_sound.set_volume(0.3)
 theworld_sound = pygame.mixer.Sound(r'sound\theworldtick.wav')
-theworld_sound.set_volume(0.5)
+theworld_sound.set_volume(1.7)
 
 
 def add_small_enemies(group1, group2, num):
@@ -86,25 +85,25 @@ def increase_speed(target, increase):
         each.speed += increase
 
 
-def Writeline(
+def writeline(
         text='',
         font=r'font\fs.ttf',
-        color=WHITE,
+        color_367=WHITE,
         bold=False,
         size=24,
         alter_x=None,
         alter_y=0):
-    Writeline_font = pygame.font.Font(font, size)
+    writeline_font = pygame.font.Font(font, size)
     if bold:
-        Writeline_font.set_bold(True)
-    Writeline_text = Writeline_font.render(text, True, color)
+        writeline_font.set_bold(True)
+    writeline_text = writeline_font.render(text, True, color_367)
     if alter_x is None:
         length = -len(text)
         for i in text:
             if i.isascii():
                 length += 0.5
         alter_x = length / 2 * size
-    screen.blit(Writeline_text, (width // 2 + alter_x, height // 2 + alter_y))
+    screen.blit(writeline_text, (width // 2 + alter_x, height // 2 + alter_y))
 
 
 def main():
@@ -148,18 +147,18 @@ def main():
     bomb_font = pygame.font.Font(r'font\font.ttf', 48)
     bomb_num = 3
 
-    supply_gap = 20
+    supply_gap = 18
     bullet2_duration = 18
     bullet3_duration = 30
     theworld_duration = 300
 
     # 每(supply_gap)s补给包
-    bullet_supply = supply.Bullet_Supply(bg_size)
-    bomb_supply = supply.Bomb_Supply(bg_size)
-    life_supply = supply.Life_Supply(bg_size)
-    theworld_supply = supply.Theworld_Supply(bg_size)
-    SUPPLY_TIME = USEREVENT
-    pygame.time.set_timer(SUPPLY_TIME, supply_gap * 1000)
+    bullet_supply = supply.BulletSupply(bg_size)
+    bomb_supply = supply.BombSupply(bg_size)
+    life_supply = supply.LifeSupply(bg_size)
+    theworld_supply = supply.TheworldSupply(bg_size)
+    supply_time = USEREVENT
+    pygame.time.set_timer(supply_time, supply_gap * 1000)
 
     # 尝试修复暂停时补给间隔直接重置的bug
     # 时间相关
@@ -167,10 +166,14 @@ def main():
     supply_count_second = 0  # 记录上次发补给的时刻(秒)
     bullet2_count_second = 0
     bullet3_count_second = 0
-    theworld_count_second = 0
     delay = 0  # 记录已绘制帧数 到100则归零
-    SUPPLY_TIME2 = USEREVENT + 1
-    pygame.time.set_timer(SUPPLY_TIME2, 1000)  # 每1000毫秒触发一次time2事件
+    supply_time2 = USEREVENT + 1
+    pygame.time.set_timer(supply_time2, 1000)  # 每1000毫秒触发一次time2事件
+    
+    # pep8 fixes
+    enemy_hit = None
+    bullets = None
+    write_info = None
 
     # 生成我方飞机
     me = myplane.Myplane(bg_size)
@@ -196,23 +199,23 @@ def main():
     # 生成普通子弹
     bullet1 = []
     bullet1_index = 0
-    BULLET1_NUM = 4
-    for i in range(BULLET1_NUM):
+    bullet1_num = 4
+    for i in range(bullet1_num):
         bullet1.append(bullet.Bullet1(me.rect.midtop))
 
     # 生成双子弹
     bullet2 = []
     bullet2_index = 0
-    BULLET2_NUM = 8
-    for i in range(BULLET2_NUM // 2):
+    bullet2_num = 8
+    for i in range(bullet2_num // 2):
         bullet2.append(bullet.Bullet2((me.rect.centerx - 33, me.rect.centery)))
         bullet2.append(bullet.Bullet2((me.rect.centerx + 30, me.rect.centery)))
 
     # 生成超级子弹
     bullet3 = []
     bullet3_index = 0
-    BULLET3_NUM = 16
-    for i in range(BULLET3_NUM // 4):
+    bullet3_num = 16
+    for i in range(bullet3_num // 4):
         bullet3.append(bullet.Bullet3((me.rect.centerx - 63, me.rect.centery)))
         bullet3.append(bullet.Bullet3((me.rect.centerx - 23, me.rect.centery)))
         bullet3.append(bullet.Bullet3((me.rect.centerx + 23, me.rect.centery)))
@@ -234,7 +237,6 @@ def main():
     miss_rate = [enemy.miss[0] / enemy.create[1],
                  enemy.miss[1] / enemy.create[1],
                  enemy.miss[2] / enemy.create[2]]
-    miss_rate_str = [str('%.1f' % (x * 100)) + r'%' for x in miss_rate]
 
     clock = pygame.time.Clock()
 
@@ -242,18 +244,17 @@ def main():
     bg_posy = -700
 
     levelup_score = [50000, 300000, 600000, 1000000]
-    #levelup_score = [5000,10000,20000,30000]
+    # levelup_score = [5000,10000,20000,30000]
     target_score = levelup_score[-1]
     bonus_level = 0
 
     while running:
         # 暂停控制 背景音乐静音控制
         if paused or silence or is_theworld:
-            # pygame.time.set_timer(SUPPLY_TIME,0)
+            # pygame.time.set_timer(supply_time,0)
             pygame.mixer.music.pause()
-            pygame.mixer.stop
         else:
-            #pygame.time.set_timer(SUPPLY_TIME,supply_gap * 1000)
+            # pygame.time.set_timer(supply_time,supply_gap * 1000)
             pygame.mixer.music.unpause()
             # pygame.mixer.unpause
 
@@ -325,7 +326,6 @@ def main():
 
                 # 详细信息启动开关 i
                 if event.key == K_i:
-                    info_count_second = count_second
                     info = not info  # 尝试实时显示
                     if not paused and not silence:
                         cheatoffsound.play()
@@ -347,30 +347,30 @@ def main():
                         target_rate_str[0], target_rate_str[1], target_rate_str[2])
                     rateinfo = 'rate={} {} {}'.format(
                         miss_rate_str[0], miss_rate_str[1], miss_rate_str[2])
-                    #bonuslevelinfo ='bonus={}'.format(bonus_level)
+                    # bonuslevelinfo ='bonus={}'.format(bonus_level)
 
                     def write_info():
-                        Writeline(
+                        writeline(
                             text=killinfo,
                             size=12,
                             alter_x=25,
                             alter_y=-345)
-                        Writeline(
+                        writeline(
                             text=missinfo,
                             size=12,
                             alter_x=25,
                             alter_y=-330)
-                        Writeline(
+                        writeline(
                             text=rateinfo,
                             size=12,
                             alter_x=25,
                             alter_y=-315)
-                        Writeline(
+                        writeline(
                             text=targetinfo,
                             size=12,
                             alter_x=25,
                             alter_y=-300)
-                        Writeline(
+                        writeline(
                             text='bonus={}'.format(bonus_level),
                             size=12,
                             alter_x=25,
@@ -401,7 +401,7 @@ def main():
                                     each.active = False
 
             # 非暂停时才计时count_second
-            elif event.type == SUPPLY_TIME2 and not paused:  # 1000毫秒触发1次的事件
+            elif event.type == supply_time2 and not paused:  # 1000毫秒触发1次的事件
                 count_second += 1
 
                 if level == 5:
@@ -430,7 +430,7 @@ def main():
                         target_rate_str[0], target_rate_str[1], target_rate_str[2])
                     rateinfo = 'rate={} {} {}'.format(
                         miss_rate_str[0], miss_rate_str[1], miss_rate_str[2])
-                    #bonuslevelinfo ='bonus={}'.format(bonus_level)
+                    # bonuslevelinfo ='bonus={}'.format(bonus_level)
 
                 if rpcount_second == 0:
                     me.rebornprotect = False
@@ -466,7 +466,7 @@ def main():
         if level == 1 and score > levelup_score[0]:
             level = 2
             supply_count_second = count_second
-            supply_gap -= 5
+            supply_gap -= 4
             if not paused and not silence:
                 upgrade_sound.play()
             # 小+3 中+2 大+1
@@ -478,7 +478,7 @@ def main():
         elif level == 2 and score > levelup_score[1]:
             level = 3
             supply_count_second = count_second
-            supply_gap -= 5
+            supply_gap -= 4
             if not paused and not silence:
                 upgrade_sound.play()
             # 小+5 中+3 大+2
@@ -539,13 +539,13 @@ def main():
             # 检测键盘操作
             key_pressed = pygame.key.get_pressed()
             if key_pressed[K_w] or key_pressed[K_UP]:
-                me.moveUp()
+                me.moveup()
             if key_pressed[K_s] or key_pressed[K_DOWN]:
-                me.moveDown()
+                me.movedown()
             if key_pressed[K_a] or key_pressed[K_LEFT]:
-                me.moveLeft()
+                me.moveleft()
             if key_pressed[K_d] or key_pressed[K_RIGHT]:
-                me.moveRight()
+                me.moveright()
 
             # 尝试使背景循环移动 worked well
             if bg_posy >= 0:
@@ -585,7 +585,7 @@ def main():
                         bullet_supply.active = False
                         bullet2_count_second = count_second
 
-             # 绘制生命+1补给并检测是否获得
+            # 绘制生命+1补给并检测是否获得
             if life_supply.active:
                 if not is_theworld:
                     life_supply.move()
@@ -607,7 +607,6 @@ def main():
                         theworld_sound.play()
                     is_theworld = True
                     theworld_supply.active = False
-                    theworld_count_second = delay
                     # 补给 重生保护 相应增加5秒
                     supply_count_second += 5
                     rpcount_second += 5
@@ -629,18 +628,18 @@ def main():
                             2].reset((me.rect.centerx + 23, me.rect.centery))
                     bullets[bullet3_index +
                             3].reset((me.rect.centerx + 63, me.rect.centery))
-                    bullet3_index = (bullet3_index + 4) % BULLET3_NUM
+                    bullet3_index = (bullet3_index + 4) % bullet3_num
                 elif is_double_bullet:
                     bullets = bullet2
                     bullets[bullet2_index].reset(
                         (me.rect.centerx - 33, me.rect.centery))
                     bullets[bullet2_index +
                             1].reset((me.rect.centerx + 30, me.rect.centery))
-                    bullet2_index = (bullet2_index + 2) % BULLET2_NUM
+                    bullet2_index = (bullet2_index + 2) % bullet2_num
                 else:
                     bullets = bullet1
                     bullets[bullet1_index].reset(me.rect.midtop)
-                    bullet1_index = (bullet1_index + 1) % BULLET1_NUM
+                    bullet1_index = (bullet1_index + 1) % bullet1_num
 
             # 子弹命中检测
             for b in bullets:
@@ -743,7 +742,7 @@ def main():
                         each.hit = False
                     if each.hit:
                         screen.blit(each.image_hit, each.rect)
-                        #each.hit = False
+                        # each.hit = False
                     else:
                         screen.blit(each.image, each.rect)
                     # 绘制血槽
@@ -799,7 +798,7 @@ def main():
             enemies_down = pygame.sprite.spritecollide(
                 me, enemies, False, pygame.sprite.collide_mask)
             if enemies_down:
-                if me.wudi == False and me.rebornprotect == False:  # cheating line###
+                if not me.wudi and not me.rebornprotect:  # cheating line###
                     me.active = False
                 for e in enemies_down:
                     e.active = False
@@ -833,7 +832,6 @@ def main():
                             running = False  # test
         # 绘制炸弹库存
         bomb_text = bomb_font.render(' x {}'.format(bomb_num), True, WHITE)
-        text_rect = bomb_text.get_rect()
         screen.blit(bomb_image, (10, height - bomb_rect.height - 10))
         screen.blit(
             bomb_text,
@@ -894,24 +892,23 @@ def main():
     screen.blit(ending_text2,(width//2-72,height//2-120))
     screen.blit(ending_text3,(width//2-48,height//2-90))
 
-    Writeline(text='游戏结束',bold=True,size=24,alter_y=-150)
-    Writeline(text='按r重新开始',bold=True,size=24,alter_y=-120)
-    Writeline(text='按q结束',bold=True,size=24,alter_y=-90)
-    Writeline(text='按t显示排行榜',bold=True,size=24,alter_y=80)
+    writeline(text='游戏结束',bold=True,size=24,alter_y=-150)
+    writeline(text='按r重新开始',bold=True,size=24,alter_y=-120)
+    writeline(text='按q结束',bold=True,size=24,alter_y=-90)
+    writeline(text='按t显示排行榜',bold=True,size=24,alter_y=80)
     '''
 
     ranking = False
-    my_ranking = 100
 
-    def Mixblit():
+    def mixblit():
         # 渲染队列
         screen.blit(background, (0, bg_posy))
-        for b in bullets:
-            if b.active:
-                screen.blit(b.image, b.rect)
-        for each in enemies:
-            if each.active:
-                screen.blit(each.image, each.rect)
+        for b_367 in bullets:
+            if b_367.active:
+                screen.blit(b_367.image, b_367.rect)
+        for each_367 in enemies:
+            if each_367.active:
+                screen.blit(each_367.image, each_367.rect)
         screen.blit(me.destroy_images[3], me.rect)
         screen.blit(bomb_image, (10, height - bomb_rect.height - 10))
         screen.blit(
@@ -921,71 +918,71 @@ def main():
              height -
              bomb_rect.height -
              13))
-        for i in range(me.life):
+        for i_367 in range(me.life):
             screen.blit(me.life_image,
-                        (width - 10 - (i + 1) * me.life_rect.width,
+                        (width - 10 - (i_367 + 1) * me.life_rect.width,
                          height - 10 - me.life_rect.height))
         screen.blit(score_text, (10, 5))
         # screen.blit(paused_image,paused_rect)
 
     # 定义游戏结束界面
-    def Shift_to_gameover():
+    def shift_to_gameover():
 
-        Mixblit()
+        mixblit()
 
-        Writeline(text='游戏结束', bold=True, size=36, alter_y=-200)
-        Writeline(text='按r重新开始', bold=True, size=36, alter_y=-150)
-        Writeline(text='按t查看排行榜', bold=True, size=36, alter_y=-100)
-        Writeline(text='按q结束', bold=True, size=36, alter_y=+100)
+        writeline(text='游戏结束', bold=True, size=36, alter_y=-200)
+        writeline(text='按r重新开始', bold=True, size=36, alter_y=-150)
+        writeline(text='按t查看排行榜', bold=True, size=36, alter_y=-100)
+        writeline(text='按q结束', bold=True, size=36, alter_y=+100)
 
     # 定义排行榜界面
 
-    def Shift_to_toplist():
+    def shift_to_toplist():
         screen.blit(background, (0, bg_posy))
         screen.blit(score_text, (10, 5))
-        Writeline(text='排名 ', color=WHITE, alter_x=-200, alter_y=-200)
-        Writeline(text='英雄名', color=WHITE, alter_x=-80, alter_y=-200)
-        Writeline(text='分数', color=WHITE, alter_x=100, alter_y=-200)
+        writeline(text='排名 ', color_367=WHITE, alter_x=-200, alter_y=-200)
+        writeline(text='英雄名', color_367=WHITE, alter_x=-80, alter_y=-200)
+        writeline(text='分数', color_367=WHITE, alter_x=100, alter_y=-200)
         mark_me = 0
-        for i in range(len(new_record)):
-            if new_record[i][0] == username and new_record[i][1] == score and not mark_me:
-                Writeline(
+        for i_367 in range(len(new_record)):
+            if new_record[i_367][0] == username and new_record[i_367][1] == score and not mark_me:
+                writeline(
                     text='NO.{} '.format(
-                        i + 1),
-                    color=GOLDEN,
+                        i_367 + 1),
+                    color_367=GOLDEN,
                     alter_x=-200,
-                    alter_y=-150 + 30 * i)
-                Writeline(
+                    alter_y=-150 + 30 * i_367)
+                writeline(
                     text=str(
-                        new_record[i][0]),
-                    color=GOLDEN,
+                        new_record[i_367][0]),
+                    color_367=GOLDEN,
                     alter_x=-80,
-                    alter_y=-150 + 30 * i)
-                Writeline(
+                    alter_y=-150 + 30 * i_367)
+                writeline(
                     text=str(
-                        new_record[i][1]),
-                    color=GOLDEN,
+                        new_record[i_367][1]),
+                    color_367=GOLDEN,
                     alter_x=100,
-                    alter_y=-150 + 30 * i)
+                    alter_y=-150 + 30 * i_367)
                 mark_me = 1
             else:
-                Writeline(
+                writeline(
                     text='NO.{} '.format(
-                        i + 1),
+                        i_367 + 1),
                     alter_x=-200,
-                    alter_y=-150 + 30 * i)
-                Writeline(
+                    alter_y=-150 + 30 * i_367)
+                writeline(
                     text=str(
-                        new_record[i][0]),
+                        new_record[i_367][0]),
                     alter_x=-80,
-                    alter_y=-150 + 30 * i)
-                Writeline(
+                    alter_y=-150 + 30 * i_367)
+                writeline(
                     text=str(
-                        new_record[i][1]),
+                        new_record[i_367][1]),
                     alter_x=100,
-                    alter_y=-150 + 30 * i)
-        Writeline(text='按b返回上级菜单', bold=True, size=36, alter_y=200)
-        Writeline(text='按c清空排行榜', bold=True, size=36, alter_y=250)
+                    alter_y=-150 + 30 * i_367)
+        writeline(text='按b返回上级菜单', bold=True, size=36, alter_y=200)
+        writeline(text='按c清空排行榜', bold=True, size=36, alter_y=250)
 
     # 读取排行榜记录
     with open(r'record.txt', 'rb') as f:
@@ -996,11 +993,11 @@ def main():
             for i in range(10):
                 record_list.append(['you know who', 1000])
 
-    Shift_to_gameover()
+    shift_to_gameover()
 
     if score > record_list[-1][1]:  # 如果比最后1名分高
         ranking = True
-        Writeline(text='成绩不错,入榜了哦', bold=True, size=24, alter_y=50)
+        writeline(text='成绩不错,入榜了哦', bold=True, size=24, alter_y=50)
         username = 'you know who'
         pygame.display.flip()
 
@@ -1020,8 +1017,6 @@ def main():
             new_record = record_list[0:10]
         else:
             new_record = record_list
-        ranking_record = [x[1] for x in new_record]
-        my_ranking = ranking_record.index(score)
         print(new_record)  # test
         with open(r'record.txt', 'wb') as f:
             pickle.dump(new_record, f)
@@ -1029,18 +1024,18 @@ def main():
         new_record = record_list
 
     if not ranking:
-        Shift_to_gameover()
+        shift_to_gameover()
     else:
-        Shift_to_toplist()
+        shift_to_toplist()
 
     tempcount = 0
     while tempcount < 1800:
 
-        if ranking == False:  # 在游戏结束界面
+        if not ranking:  # 在游戏结束界面
             for event in pygame.event.get():
                 if event.type == KEYDOWN and event.key == K_t:
                     ranking = True
-                    Shift_to_toplist()
+                    shift_to_toplist()
                 if event.type == KEYDOWN and event.key == K_r:
                     main()
                 if event.type == KEYDOWN and event.key == K_q:
@@ -1052,7 +1047,7 @@ def main():
             for event in pygame.event.get():
                 if event.type == KEYDOWN and event.key == K_b:
                     ranking = False
-                    Shift_to_gameover()
+                    shift_to_gameover()
                 if event.type == KEYDOWN and event.key == K_c:
                     # 按c清空排行榜
                     new_record = []
@@ -1061,7 +1056,7 @@ def main():
                     with open(r'record.txt', 'wb') as f:
                         pickle.dump(new_record, f)
                     cheatonsound.play()
-                    Shift_to_toplist()
+                    shift_to_toplist()
 
         tempcount += 1
 
@@ -1074,7 +1069,7 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
+    '''try:
         main()
 
     except SystemExit:
@@ -1082,4 +1077,5 @@ if __name__ == '__main__':
     except BaseException:
         traceback.print_exc()
         pygame.quit()
-        input()
+        input()'''
+    main()

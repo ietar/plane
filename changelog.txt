@@ -1,3 +1,9 @@
+v2.1
+修复了libpng warning: iCCP: known incorrect sRGB profile的warning(通过imagemagick)
+代码优化(根据pycharm提示)
+略微缩短了初始补给间隔(20-18) 前2次升级提供的补给间隔减少量分别-1
+theworld音效音量大幅增加
+
 v2.0
 增加了theworld补给 效果为停止时间5秒(手画素材太惨了 得找个像样点的图)
 增加了额外关卡 100w分(即5级)之后开启 每10w为1关 遗漏率检查更严格 点击i开启详细信息可查看目标遗漏率和当前遗漏率
