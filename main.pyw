@@ -10,12 +10,16 @@ from pygame.locals import *
 from random import *
 
 
+
+__version__ = 'v2.1'
+__author__ = 'ietar'
+
 pygame.init()
 pygame.mixer.init()
 
 bg_size = width, height = 480, 700  # 为操作界面尺寸
 screen = pygame.display.set_mode(bg_size)
-pygame.display.set_caption(r'打飞机是男人的浪漫! v2.0')
+pygame.display.set_caption(r'打飞机是男人的浪漫! {}'.format(__version__))
 
 background = pygame.image.load(r'images\background_double.png').convert()
 BLACK = (0, 0, 0)
